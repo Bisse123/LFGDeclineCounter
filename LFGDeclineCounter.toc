@@ -1,0 +1,11 @@
+## Interface: 100005
+## Version: 1.0.0
+## Title LFG Decline Counter
+## Author: Bisse
+## SavedVariables: LFGDeclineCounterDB
+## SavedVariablesPerCharacter: LFGDeclineCounterCharacterDB
+
+DB.lua
+Config.lua
+Counter.lua
+LFGDeclineCounter.lua

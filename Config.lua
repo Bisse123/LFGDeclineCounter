@@ -257,6 +257,7 @@ end
 ----------------------------------
 -- Anchor functions
 ----------------------------------
+
 local function checkAnchor()
     if core.DB.accountLife.show then
         if core.DB.charLife.show then
@@ -267,6 +268,7 @@ local function checkAnchor()
     end
 
 end
+
 ----------------------------------
 -- Character functions
 ----------------------------------

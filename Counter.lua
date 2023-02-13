@@ -29,14 +29,14 @@ function Counter:newCount(newStatus)
         core.DB.accountLife.delistCount = core.DB.accountLife.delistCount + 1
         core.Config.delistTextUpdate()
     elseif (newStatus == "invited") then
-        core.DB.session.invitedCount = core.DB.session.invitedCount + 1
-        core.DB.charLife.invitedCount = core.DB.charLife.invitedCount + 1
-        core.DB.accountLife.invitedCount = core.DB.accountLife.invitedCount + 1
+        core.DB.session.inviteCount = core.DB.session.inviteCount + 1
+        core.DB.charLife.inviteCount = core.DB.charLife.inviteCount + 1
+        core.DB.accountLife.inviteCount = core.DB.accountLife.inviteCount + 1
         core.Config.inviteTextUpdate()
     elseif (newStatus == "inviteaccepted") then
-        core.DB.session.acceptedCount = core.DB.session.acceptedCount + 1
-        core.DB.charLife.acceptedCount = core.DB.charLife.acceptedCount + 1
-        core.DB.accountLife.acceptedCount = core.DB.accountLife.acceptedCount + 1
+        core.DB.session.acceptCount = core.DB.session.acceptCount + 1
+        core.DB.charLife.acceptCount = core.DB.charLife.acceptCount + 1
+        core.DB.accountLife.acceptCount = core.DB.accountLife.acceptCount + 1
         core.Config.acceptTextUpdate()
     end
 end

@@ -69,8 +69,8 @@ function DB:init()
 
 	if not LFGDeclineCounterDB.timer then
 		LFGDeclineCounterDB.timer = {
-			time = nil,
-			expiration = nil,
+			time = GetTime(),
+			expiration = GetTime() + 60 * 5 --5 min,
 		}
 	end
 

@@ -57,8 +57,8 @@ function core:init(event, ...)
 		SLASH_LFGDeclineCounter1 = "/dc"
 		SlashCmdList.LFGDeclineCounter = HandleSlashCommands
 		core.DB.init()
-		core.Config.initSession()
-		core.Config.initCountFrames()
+		core.Counter.initSession()
+		core.Counter.initCountFrames()
 	elseif event == "LFG_LIST_APPLICATION_STATUS_UPDATED" then
 		core.Counter.newCount(...)
 	elseif event == "PLAYER_LOGOUT" then

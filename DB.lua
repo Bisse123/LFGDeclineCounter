@@ -21,6 +21,16 @@ function DB:init()
 		}
 	end
 
+	if not LFGDeclineCounterDB.options then
+		LFGDeclineCounterDB.options = {
+			anchor = "top left",
+			orientation = "right",
+			xOffset = 0,
+			yOffset = 0,
+			padding = 0
+		}
+	end
+
 	if not LFGDeclineCounterDB.accountLife then
 		LFGDeclineCounterDB.accountLife = {
 			applyCount = 0,
@@ -69,12 +79,12 @@ function DB:init()
 
 	if not LFGDeclineCounterDB.timer then
 		LFGDeclineCounterDB.timer = {
-			time = nil,
-			expiration = nil,
+			time = GetTime(),
+			expiration = GetTime() + 60 * 5 --5 min,
 		}
 	end
 
-	
+	core.DB.options = LFGDeclineCounterDB.options
 	core.DB.accountLife = LFGDeclineCounterDB.accountLife
 	core.DB.charLife = LFGDeclineCounterCharacterDB.charLife
 	core.DB.showCounters = LFGDeclineCounterDB.showCounters
@@ -84,6 +94,7 @@ function DB:init()
 end
 
 function DB:exit()
+	LFGDeclineCounterDB.options = core.DB.options
     LFGDeclineCounterDB.accountLife = core.DB.accountLife
 	LFGDeclineCounterCharacterDB.charLife = core.DB.charLife
 	LFGDeclineCounterDB.showCounters = core.DB.showCounters

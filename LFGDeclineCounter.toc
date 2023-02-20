@@ -6,6 +6,6 @@
 ## SavedVariablesPerCharacter: LFGDeclineCounterCharacterDB
 
 DB.lua
-Config.lua
 Counter.lua
+Config.lua
 LFGDeclineCounter.lua

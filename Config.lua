@@ -3,36 +3,29 @@ core.Config = {}
 
 local Config = core.Config
 local UIConfig
-local sessionFrame
-local charFrame
-local accFrame
 
 local CONFIG_FRAME_WIDTH = 460
 local CONFIG_FRAME_HEIGHT = 250
-
-local COUNT_FRAME_WIDTH = 300
-local COUNT_FRAME_HEIGHT = 100
-
-
-local textColumns = {
-    left = (COUNT_FRAME_WIDTH/16),
-    right = (COUNT_FRAME_WIDTH*3/5)
+local anchorOptions = {
+    "top left",
+    "top right",
+    "bottom left",
+    "bottom right",
+    "top",
+    "bottom",
+    "left",
+    "right",
+    "center"
 }
 
-local textRows = {
-    [1] = -40,
-    [2] = -60,
-    [3] = -80
+local oreientationOptions = {
+    "up",
+    "down",
+    "left",
+    "right"
 }
 
-local textPositions = {
-    [1] = {x = textColumns.left, y = textRows[1]},
-    [2] = {x = textColumns.right, y = textRows[1]},
-    [3] = {x = textColumns.left, y = textRows[2]},
-    [4] = {x = textColumns.right, y = textRows[2]},
-    [5] = {x = textColumns.left, y = textRows[3]},
-    [6] = {x = textColumns.right, y = textRows[3]}
-}
+
 
 ----------------------------------
 -- GUI functions
@@ -43,38 +36,12 @@ function Config:Toggle()
     menu:SetShown(not menu:IsShown())
 end
 
-function Config:initSession()
-    core.DB.timer.time = GetTime()
-    if (core.DB.timer.expiration < core.DB.timer.time) or (not (Config:compareCharacterNames()) and not (core.DB.session.crossCharacter)) then
-        core.DB.session = {
-            applyCount = 0,
-            declineCount = 0,
-            cancelCount = 0,
-            delistCount = 0,
-            inviteCount = 0,
-            acceptCount = 0
-        }
-    end
-    core.DB.session.currentCharacter = {UnitFullName("player")}
-end
-
-function Config:initCountFrames()
-    Config:createSessionFrame()
-    Config:createCharacterFrame()
-    Config:createAccFrame()
-    Config:updateTextPoints()
-end
-
 function Config:GetThemeColor()
     local c = LFGDeclineCounterDB.theme
     return c.r, c.g, c.b, c.hex
 end
 
-----------------------------------
--- Create functions
-----------------------------------
-
-local function CreateButton(point, relativeFrame, relativePoint, xOffset, yOffset, width, height, input, func)
+local function createButton(point, relativeFrame, relativePoint, xOffset, yOffset, width, height, input, func)
     local btn = CreateFrame("Button", nil, relativeFrame)
 	btn:SetPoint(point, relativeFrame, relativePoint, xOffset, yOffset)
 	btn:SetSize(width, height)
@@ -89,7 +56,7 @@ local function CreateButton(point, relativeFrame, relativePoint, xOffset, yOffse
 	return btn
 end
 
-local function CreateCheckButton(point, relativeFrame, relativePoint, xOffset, yOffset, input, checked, func, name)
+local function createCheckButton(point, relativeFrame, relativePoint, xOffset, yOffset, input, checked, func, name)
     local btn = CreateFrame("CheckButton", name, relativeFrame, "UICheckButtonTemplate")
     btn:SetPoint(point, relativeFrame, relativePoint, xOffset, yOffset)
 	_G[name .. "Text"]:SetText(input)
@@ -98,12 +65,172 @@ local function CreateCheckButton(point, relativeFrame, relativePoint, xOffset, y
     return btn
 end
 
-local function createText(point, relativeFrame, relativePoint, xOffset, yOffset, input, size, parent)
-	local text = relativeFrame:CreateFontString(parent, "OVERLAY", "GameFontHighlightLarge")
-	text:SetFont("Fonts\\FRIZQT__.TTF", size, "OUTLINE")
-	text:SetPoint(point, relativeFrame, relativePoint, xOffset, yOffset)
-	text:SetText(input)
-	return text
+local function createDropdown(point, relativeFrame, relativePoint, xOffset, yOffset, title, items, defaultVal, changeFunc, name)
+	local menu_items = items or {}
+	local title_text = title or ''
+	local dropdown_width = 0
+	local default_val = defaultVal or ''
+	local change_func = changeFunc or function (dropdown_val) end
+
+	local dropdown = CreateFrame("Frame", name, relativeFrame, "UIDropDownMenuTemplate")
+	dropdown:SetPoint(point, relativeFrame, relativePoint, xOffset, yOffset)
+	
+	local dd_title = dropdown:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+	dd_title:SetPoint("TOPLEFT", 20, 10)
+
+	for _, item in pairs(menu_items) do -- Sets the dropdown width to the largest item string width.
+		dd_title:SetText(item)
+		local text_width = dd_title:GetStringWidth() + 20
+		if text_width > dropdown_width then
+			dropdown_width = text_width
+		end
+	end
+
+	dd_title:SetText(title_text)
+    local text_width = dd_title:GetStringWidth() + 20
+    if text_width > dropdown_width then
+        dropdown_width = text_width
+    end
+	UIDropDownMenu_SetWidth(dropdown, dropdown_width)
+	UIDropDownMenu_SetText(dropdown, default_val)
+
+	UIDropDownMenu_Initialize(dropdown, function(self, level, _)
+		local info = UIDropDownMenu_CreateInfo()
+		for key, val in pairs(menu_items) do
+			info.text = val
+			info.checked = false
+			info.menuList= key
+			info.hasArrow = false
+			info.func = function(b)
+				UIDropDownMenu_SetSelectedValue(dropdown, b.value, b.value)
+				UIDropDownMenu_SetText(dropdown, b.value)
+				b.checked = true
+				change_func(b.value)
+			end
+			UIDropDownMenu_AddButton(info)
+		end
+	end)
+	UIDropDownMenu_SetSelectedName(dropdown, default_val, default_val)
+	UIDropDownMenu_SetText(dropdown, default_val)
+	return dropdown
+end
+
+local function createSlider(point, relativeFrame, relativePoint, xOffset, yOffset, title, minVal, maxVal, valStep, width, height, initval, func, name)
+    local slider = CreateFrame("Slider", name, relativeFrame, "OptionsSliderTemplate")
+    local editbox = CreateFrame("EditBox", nil, slider, "InputBoxTemplate")
+	slider:SetPoint(point, relativeFrame, relativePoint, xOffset, yOffset)
+    slider:SetMinMaxValues(minVal, maxVal)
+    slider:SetValueStep(valStep)
+    slider:SetValue(initval)
+    slider:SetWidth(width)
+    slider:SetHeight(height)
+    --slider:SetOrientation("VERTICAL")
+
+    slider.text = _G[name.."Text"]
+    slider.text:SetText(title)
+    slider.textLow = _G[name.."Low"]
+    slider.textHigh = _G[name.."High"]
+    slider.textLow:SetText(floor(minVal))
+    slider.textHigh:SetText(floor(maxVal))
+    slider.textLow:SetTextColor(0.4,0.4,0.4)
+    slider.textHigh:SetTextColor(0.4,0.4,0.4)
+
+    editbox:SetSize(50,30)
+    editbox:ClearAllPoints()
+    editbox:SetPoint("TOP", slider, "BOTTOM", 0, 0)
+    editbox:SetText(slider:GetValue())
+    editbox:SetAutoFocus(false)
+
+    slider:SetScript("OnValueChanged", function(self,value)
+        local val = floor(value/valStep) * valStep
+        self.editbox:SetText(val)
+    end)
+    editbox:SetScript("OnTextChanged", function(self)
+        local val = self:GetText()
+        if tonumber(val) then
+            self:GetParent():SetValue(val)
+        end
+    end)
+    editbox:SetScript("OnEnterPressed", function(self)
+        local val = self:GetText()
+        if tonumber(val) then
+            self:GetParent():SetValue(val)
+            self:ClearFocus()
+        end
+    end)
+    slider:HookScript("OnValueChanged", func)
+
+    slider.editbox = editbox
+    return slider
+
+end
+
+local function ScrollBarChange()
+	if UIConfig.ScrollFrame:GetVerticalScrollRange() == 0 then
+		UIConfig.ScrollFrame.ScrollBar:ClearAllPoints()
+		UIConfig.ScrollFrame.ScrollBar:SetPoint("TOPLEFT", UIConfig.ScrollFrame, "TOPRIGHT", 10, 0)
+		UIConfig.ScrollFrame.ScrollBar:SetPoint("BOTTOMRIGHT", UIConfig.ScrollFrame, "BOTTOMRIGHT", 10, 0)
+	else
+		UIConfig.ScrollFrame.ScrollBar:ClearAllPoints()
+		UIConfig.ScrollFrame.ScrollBar:SetPoint("TOPLEFT", UIConfig.ScrollFrame, "TOPRIGHT", -12, -18)
+		UIConfig.ScrollFrame.ScrollBar:SetPoint("BOTTOMRIGHT", UIConfig.ScrollFrame, "BOTTOMRIGHT", -7, 18)
+	end
+end
+
+local function ScrollFrame_OnMouseWheel(self, delta)
+	local newValue = self:GetVerticalScroll() - (delta * 20)
+	
+	if (newValue < 0) then
+		newValue = 0
+	elseif (newValue > self:GetVerticalScrollRange()) then
+		newValue = self:GetVerticalScrollRange()
+	end
+	
+	self:SetVerticalScroll(newValue)
+end
+
+local function Tab_OnClick(self)
+	PanelTemplates_SetTab(self:GetParent(), self:GetID())
+	
+	local scrollChild = UIConfig.ScrollFrame:GetScrollChild()
+	if (scrollChild) then
+		scrollChild:Hide()
+	end
+	
+	UIConfig.ScrollFrame:SetScrollChild(self.content)
+	self.content:Show()
+	C_Timer.After(0, function() ScrollBarChange() end)
+end
+
+local function SetTabs(frame, numTabs, ...)
+	frame.numTabs = numTabs
+	
+	local contents = {}
+	local frameName = frame:GetName()
+	
+	for i = 1, numTabs do	
+		local tab = CreateFrame("Button", frameName.."Tab"..i, frame, "PanelTabButtonTemplate")
+		tab:SetID(i)
+		tab:SetText(select(i, ...))
+		tab:SetScript("OnClick", Tab_OnClick)
+		
+		tab.content = CreateFrame("Frame", nil, UIConfig.ScrollFrame)
+		tab.content:SetSize(CONFIG_FRAME_WIDTH - 42, CONFIG_FRAME_HEIGHT- 50)
+		tab.content:Hide()
+		
+		
+		table.insert(contents, tab.content)
+		
+		if (i == 1) then
+			tab:SetPoint("TOPLEFT", UIConfig, "BOTTOMLEFT", 5, 7)
+		else
+			tab:SetPoint("TOPLEFT", _G[frameName.."Tab"..(i - 1)], "TOPRIGHT", 0, 0)
+		end	
+	end
+	
+	Tab_OnClick(_G[frameName.."Tab1"])
+	
+	return unpack(contents)
 end
 
 ----------------------------------
@@ -112,170 +239,63 @@ end
 
 local function showCancelCount()
     core.DB.showCounters.cancel = not core.DB.showCounters.cancel
-    Config:updateTextPoints()
+    core.Counter.updateTextPoints()
 end
 
 local function showDelistCount()
     core.DB.showCounters.delist = not core.DB.showCounters.delist
-    Config:updateTextPoints()
+    core.Counter.updateTextPoints()
 end
 
 local function showInviteCount()
     core.DB.showCounters.invite = not core.DB.showCounters.invite
-    Config:updateTextPoints()
+    core.Counter.updateTextPoints()
 end
 
 local function showAcceptCount()
     core.DB.showCounters.accept = not core.DB.showCounters.accept
-    Config:updateTextPoints()
+    core.Counter.updateTextPoints()
 end
-
-----------------------------------
--- Update text functions
-----------------------------------
-
-function Config:updateTextPoints()
-    local count = 3
-    if core.DB.showCounters.cancel then
-        sessionFrame.CancelText:Show()
-        charFrame.CancelText:Show()
-        accFrame.CancelText:Show()
-        sessionFrame.CancelText:SetPoint("TOPLEFT", sessionFrame, "TOPLEFT", textPositions[count].x, textPositions[count].y)
-        charFrame.CancelText:SetPoint("TOPLEFT", charFrame, "TOPLEFT", textPositions[count].x, textPositions[count].y)
-        accFrame.CancelText:SetPoint("TOPLEFT", accFrame, "TOPLEFT", textPositions[count].x, textPositions[count].y)
-        count = count + 1
-    else
-        sessionFrame.CancelText:Hide()
-        charFrame.CancelText:Hide()
-        accFrame.CancelText:Hide()
-    end
-
-    if core.DB.showCounters.delist then
-        sessionFrame.DelistText:Show()
-        charFrame.DelistText:Show()
-        accFrame.DelistText:Show()
-        sessionFrame.DelistText:SetPoint("TOPLEFT", sessionFrame, "TOPLEFT", textPositions[count].x, textPositions[count].y)
-        charFrame.DelistText:SetPoint("TOPLEFT", charFrame, "TOPLEFT", textPositions[count].x, textPositions[count].y)
-        accFrame.DelistText:SetPoint("TOPLEFT", accFrame, "TOPLEFT", textPositions[count].x, textPositions[count].y)
-        count = count + 1
-    else
-        sessionFrame.DelistText:Hide()
-        charFrame.DelistText:Hide()
-        accFrame.DelistText:Hide()
-    end
-
-    if core.DB.showCounters.invite then
-        sessionFrame.InviteText:Show()
-        charFrame.InviteText:Show()
-        accFrame.InviteText:Show()
-        sessionFrame.InviteText:SetPoint("TOPLEFT", sessionFrame, "TOPLEFT", textPositions[count].x, textPositions[count].y)
-        charFrame.InviteText:SetPoint("TOPLEFT", charFrame, "TOPLEFT", textPositions[count].x, textPositions[count].y)
-        accFrame.InviteText:SetPoint("TOPLEFT", accFrame, "TOPLEFT", textPositions[count].x, textPositions[count].y)
-        count = count + 1
-    else
-        sessionFrame.InviteText:Hide()
-        charFrame.InviteText:Hide()
-        accFrame.InviteText:Hide()
-    end
-    
-    if core.DB.showCounters.accept then
-        sessionFrame.AcceptText:Show()
-        charFrame.AcceptText:Show()
-        accFrame.AcceptText:Show()
-        sessionFrame.AcceptText:SetPoint("TOPLEFT", sessionFrame, "TOPLEFT", textPositions[count].x, textPositions[count].y)
-        charFrame.AcceptText:SetPoint("TOPLEFT", charFrame, "TOPLEFT", textPositions[count].x, textPositions[count].y)
-        accFrame.AcceptText:SetPoint("TOPLEFT", accFrame, "TOPLEFT", textPositions[count].x, textPositions[count].y)
-        count = count + 1
-    else
-        sessionFrame.AcceptText:Hide()
-        charFrame.AcceptText:Hide()
-        accFrame.AcceptText:Hide()
-    end
-
-    if count < 4 then
-        sessionFrame:SetSize(COUNT_FRAME_WIDTH, 60)
-        charFrame:SetSize(COUNT_FRAME_WIDTH, 60)
-        accFrame:SetSize(COUNT_FRAME_WIDTH, 60)
-    elseif count < 6 then
-        sessionFrame:SetSize(COUNT_FRAME_WIDTH, 80)
-        charFrame:SetSize(COUNT_FRAME_WIDTH, 80)
-        accFrame:SetSize(COUNT_FRAME_WIDTH, 80)
-    else 
-        sessionFrame:SetSize(COUNT_FRAME_WIDTH, COUNT_FRAME_HEIGHT)
-        charFrame:SetSize(COUNT_FRAME_WIDTH, COUNT_FRAME_HEIGHT)
-        accFrame:SetSize(COUNT_FRAME_WIDTH, COUNT_FRAME_HEIGHT)
-    end
-end
-
-function Config:allTextUpdate()
-    Config:applyTextUpdate()
-    Config:declineTextUpdate()
-    Config:cancelTextUpdate()
-    Config:delistTextUpdate()
-    Config:inviteTextUpdate()
-    Config:acceptTextUpdate()
-end
-
-function Config:applyTextUpdate()
-    sessionFrame.ApplyText:SetText("Apply Count: " .. core.DB.session.applyCount)
-    charFrame.ApplyText:SetText("Apply Count: " .. core.DB.charLife.applyCount)
-    accFrame.ApplyText:SetText("Apply Count: " .. core.DB.accountLife.applyCount)
-end
-
-function Config:declineTextUpdate()
-    sessionFrame.DeclineText:SetText("Decline Count: " .. core.DB.session.declineCount)
-    charFrame.DeclineText:SetText("Decline Count: " .. core.DB.charLife.declineCount)
-    accFrame.DeclineText:SetText("Decline Count: " .. core.DB.accountLife.declineCount)
-end
-
-function Config:cancelTextUpdate()
-    sessionFrame.CancelText:SetText("Cancel Count: " .. core.DB.session.cancelCount)
-    charFrame.CancelText:SetText("Cancel Count: " .. core.DB.charLife.cancelCount)
-    accFrame.CancelText:SetText("Cancel Count: " .. core.DB.accountLife.cancelCount)
-end
-
-function Config:delistTextUpdate()
-    sessionFrame.DelistText:SetText("Delist Count: " .. core.DB.session.delistCount)
-    charFrame.DelistText:SetText("Delist Count: " .. core.DB.charLife.delistCount)
-    accFrame.DelistText:SetText("Delist Count: " .. core.DB.accountLife.delistCount)
-end
-
-function Config:inviteTextUpdate()
-    sessionFrame.InviteText:SetText("Invite Count: " .. core.DB.session.inviteCount)
-    charFrame.InviteText:SetText("Invite Count: " .. core.DB.charLife.inviteCount)
-    accFrame.InviteText:SetText("Invite Count: " .. core.DB.accountLife.inviteCount)
-end
-
-function Config:acceptTextUpdate()
-    sessionFrame.AcceptText:SetText("Accept Count: " .. core.DB.session.acceptCount)
-    charFrame.AcceptText:SetText("Accept Count: " .. core.DB.charLife.acceptCount)
-    accFrame.AcceptText:SetText("Accept Count: " .. core.DB.accountLife.acceptCount)
-end
-
 
 
 ----------------------------------
 -- Anchor functions
 ----------------------------------
-local function checkAnchor()
-    if core.DB.accountLife.show then
-        if core.DB.charLife.show then
-            accFrame:SetPoint("TOPLEFT", charFrame, "TOPRIGHT", 2, 0)
-        else
-            accFrame:SetPoint("TOPLEFT", sessionFrame, "TOPRIGHT", 2, 0)
-        end
-    end
 
+local function changeAnchor(anchorPosition)
+    core.DB.options.anchor = anchorPosition
+    core.Counter.updateAnchorPosition()
 end
+
+local function changeOrientation(orientationPosition)
+    core.DB.options.orientation = orientationPosition
+    core.Counter.updateOrientation()
+end
+
+local function changePad(self)
+    core.DB.options.padding = floor(self:GetValue() / self:GetValueStep()) * self:GetValueStep()
+    core.Counter.setPadding()
+end
+
+local function moveX(self)
+    core.DB.options.xOffset = floor(self:GetValue() / self:GetValueStep()) * self:GetValueStep()
+    core.Counter.setOffset()
+end
+
+local function moveY(self)
+    core.DB.options.yOffset = floor(self:GetValue() / self:GetValueStep()) * self:GetValueStep()
+    core.Counter.setOffset()
+end
+
 ----------------------------------
 -- Character functions
 ----------------------------------
 
 local function showCharacterLife()
-    local menu = charFrame or Config:createCharacterFrame()
+    local menu = core.Counter.GetcharFrame()
     core.DB.charLife.show = not core.DB.charLife.show
     menu:SetShown(core.DB.charLife.show)
-    checkAnchor()
+    core.Counter.checkAccountAnchor()
 end
 
 local function resetCharacterLife()
@@ -285,27 +305,22 @@ local function resetCharacterLife()
     core.DB.charLife.delistCount = 0
     core.DB.charLife.inviteCount = 0
     core.DB.charLife.acceptCount = 0
-
-    Config:allTextUpdate()
+    core.Counter.allTextUpdate()
 end
 
 local function crossCharacterChange()
     core.DB.session.crossCharacter = not core.DB.session.crossCharacter
 end
 
-function Config:compareCharacterNames()
-    local characterName = {UnitFullName("player")}
-    return core.DB.session.currentCharacter[1] == characterName[1] and core.DB.session.currentCharacter[2] == characterName[2]
-end
 ----------------------------------
 -- Account functions
 ----------------------------------
 
 local function showAccountLife()
-    local menu = accFrame or Config:createAccountFrame()
+    local menu = core.Counter.GetaccFrame()
     core.DB.accountLife.show = not core.DB.accountLife.show
     menu:SetShown(core.DB.accountLife.show)
-    checkAnchor()
+    core.Counter.checkAccountAnchor()
 end
 
 local function resetAccountLife()
@@ -316,79 +331,12 @@ local function resetAccountLife()
     core.DB.accountLife.inviteCount = 0
     core.DB.accountLife.acceptCount = 0
     
-    Config:allTextUpdate()
+    core.Counter.allTextUpdate()
 end
+
 ----------------------------------
--- Main functions
+-- Main function
 ----------------------------------
-
-function Config:createSessionFrame()
-    sessionFrame = CreateFrame("Frame", "sessionCountFrame", PVEFrame)
-    sessionFrame:ClearAllPoints()
-    sessionFrame:SetSize(COUNT_FRAME_WIDTH, COUNT_FRAME_HEIGHT)
-    sessionFrame:SetPoint("BOTTOMLEFT", PVEFrame, "TOPLEFT", 0, 5)
-    sessionFrame.tex = sessionFrame:CreateTexture(nil, "BACKGROUND", nil, -7)
-    sessionFrame.tex:SetAllPoints(sessionFrame)
-    sessionFrame.tex:SetColorTexture(0, 0, 0, 0.75)
-    
-    sessionFrame.SessionText = createText("TOP", sessionFrame, "TOP", 0, -10, "Current Session", 20, nil)
-    
-    sessionFrame.ApplyText = createText("TOPLEFT", sessionFrame, "TOPLEFT", textPositions[1].x, textPositions[1].y, "Apply Count: " .. core.DB.session.applyCount, 12, nil)
-    sessionFrame.DeclineText = createText("TOPLEFT", sessionFrame, "TOPLEFT", textPositions[2].x, textPositions[2].y, "Decline Count: " .. core.DB.session.declineCount, 12, nil)
-    sessionFrame.CancelText = createText("TOPLEFT", sessionFrame, "TOPLEFT", textPositions[3].x, textPositions[3].y, "Cancel Count: " .. core.DB.session.cancelCount, 12, nil)
-    sessionFrame.DelistText = createText("TOPLEFT", sessionFrame, "TOPLEFT", textPositions[4].x, textPositions[4].y, "Delist Count: " .. core.DB.session.delistCount, 12, nil)
-    sessionFrame.InviteText = createText("TOPLEFT", sessionFrame, "TOPLEFT", textPositions[5].x, textPositions[5].y, "Invite Count: " .. core.DB.session.inviteCount, 12, nil)
-    sessionFrame.AcceptText = createText("TOPLEFT", sessionFrame, "TOPLEFT", textPositions[6].x, textPositions[6].y, "Accept Count: " .. core.DB.session.acceptCount, 12, nil)
-    sessionFrame:Show()
-    return sessionFrame
-end
-
-function Config:createCharacterFrame()
-    charFrame = CreateFrame("Frame", "CharCountFrame", PVEFrame)
-    charFrame:ClearAllPoints()
-    charFrame:SetSize(COUNT_FRAME_WIDTH, COUNT_FRAME_HEIGHT)
-    charFrame:SetPoint("TOPLEFT", sessionFrame, "TOPRIGHT", 2, 0)
-    charFrame.tex = charFrame:CreateTexture(nil, "BACKGROUND", nil, -7)
-    charFrame.tex:SetAllPoints(charFrame)
-    charFrame.tex:SetColorTexture(0, 0, 0, 0.75)
-    
-    charFrame.SessionText = createText("TOP", charFrame, "TOP", 0, -10, "Character Lifetime", 20, nil)
-
-    charFrame.ApplyText = createText("TOPLEFT", charFrame, "TOPLEFT", textPositions[1].x, textPositions[1].y, "Apply Count: " .. core.DB.charLife.applyCount, 12, nil)
-    charFrame.DeclineText = createText("TOPLEFT", charFrame, "TOPLEFT", textPositions[2].x, textPositions[2].y, "Decline Count: " .. core.DB.charLife.declineCount, 12, nil)
-    charFrame.CancelText = createText("TOPLEFT", charFrame, "TOPLEFT", textPositions[3].x, textPositions[3].y, "Cancel Count: " .. core.DB.charLife.cancelCount, 12, nil)
-    charFrame.DelistText = createText("TOPLEFT", charFrame, "TOPLEFT", textPositions[4].x, textPositions[4].y, "Delist Count: " .. core.DB.charLife.delistCount, 12, nil)
-    charFrame.InviteText = createText("TOPLEFT", charFrame, "TOPLEFT", textPositions[5].x, textPositions[5].y, "Invite Count: " .. core.DB.charLife.inviteCount, 12, nil)
-    charFrame.AcceptText = createText("TOPLEFT", charFrame, "TOPLEFT", textPositions[6].x, textPositions[6].y, "Accept Count: " .. core.DB.charLife.acceptCount, 12, nil)
-    
-    charFrame:SetShown(core.DB.charLife.show)
-    
-    return charFrame
-end
-
-function Config:createAccFrame()
-    accFrame = CreateFrame("Frame", "CharCountFrame", PVEFrame)
-    accFrame:ClearAllPoints()
-    accFrame:SetSize(COUNT_FRAME_WIDTH, COUNT_FRAME_HEIGHT)
-    checkAnchor()
-    accFrame.tex = accFrame:CreateTexture(nil, "BACKGROUND", nil, -7)
-    accFrame.tex:SetAllPoints(accFrame)
-    accFrame.tex:SetColorTexture(0, 0, 0, 0.75)
-    
-    accFrame.SessionText = createText("TOP", accFrame, "TOP", 0, -10, "Account Lifetime", 20, nil)
-
-    accFrame.ApplyText = createText("TOPLEFT", accFrame, "TOPLEFT", textPositions[1].x, textPositions[1].y, "Apply Count: " .. core.DB.accountLife.applyCount, 12, nil)
-    accFrame.DeclineText = createText("TOPLEFT", accFrame, "TOPLEFT", textPositions[2].x, textPositions[2].y, "Decline Count: " .. core.DB.accountLife.declineCount, 12, nil)
-    accFrame.CancelText = createText("TOPLEFT", accFrame, "TOPLEFT", textPositions[3].x, textPositions[3].y, "Cancel Count: " .. core.DB.accountLife.cancelCount, 12, nil)
-    accFrame.DelistText = createText("TOPLEFT", accFrame, "TOPLEFT", textPositions[4].x, textPositions[4].y, "Delist Count: " .. core.DB.accountLife.delistCount, 12, nil)
-    accFrame.InviteText = createText("TOPLEFT", accFrame, "TOPLEFT", textPositions[5].x, textPositions[5].y, "Invite Count: " .. core.DB.accountLife.inviteCount, 12, nil)
-    accFrame.AcceptText = createText("TOPLEFT", accFrame, "TOPLEFT", textPositions[6].x, textPositions[6].y, "Accept Count: " .. core.DB.accountLife.acceptCount, 12, nil)
-    
-    accFrame:SetShown(core.DB.accountLife.show)
-    
-    return charFrame
-end
-
 
 function Config:CreateMenu()
     UIConfig = CreateFrame("Frame", "LFGDeclineCounterConfig", UIParent, "UIPanelDialogTemplate")
@@ -400,6 +348,7 @@ function Config:CreateMenu()
 	UIConfig:SetScript("OnDragStop", UIConfig.StopMovingOrSizing)
     UIConfig:SetSize(CONFIG_FRAME_WIDTH, CONFIG_FRAME_HEIGHT)
     UIConfig:SetPoint("CENTER")
+    UIConfig:SetFrameStrata("HIGH")
 
     UIConfig.title = UIConfig:CreateFontString(nil, "OVERLAY")
     UIConfig.title:ClearAllPoints()
@@ -407,18 +356,39 @@ function Config:CreateMenu()
     UIConfig.title:SetPoint("LEFT", LFGDeclineCounterConfigTitleBG, "LEFT", 6, 1)
     UIConfig.title:SetText("LFG Decline Counter Options")
 
-    UIConfig.showCancel = CreateCheckButton("TOPLEFT", UIConfig, "TOPLEFT", 25, -35, "Show Cancel counter", core.DB.showCounters.cancel, showCancelCount, "showCancel")
-    UIConfig.showDelist = CreateCheckButton("TOPLEFT", UIConfig.showCancel, "BOTTOMLEFT", 0, 5, "Show Delist counter", core.DB.showCounters.delist, showDelistCount, "showDelist")
-    UIConfig.showInvite = CreateCheckButton("TOPLEFT", UIConfig.showDelist, "BOTTOMLEFT", 0, 5, "Show Invite counter", core.DB.showCounters.invite, showInviteCount, "showInvite")
-    UIConfig.showAccept = CreateCheckButton("TOPLEFT", UIConfig.showInvite, "BOTTOMLEFT", 0, 5, "Show Accept counter", core.DB.showCounters.accept, showAcceptCount, "showAccept")
+    UIConfig.ScrollFrame = CreateFrame("ScrollFrame", nil, UIConfig, "UIPanelScrollFrameTemplate")
+    UIConfig.ScrollFrame:SetPoint("TOPLEFT", LFGDeclineCounterConfigDialogBG, "TOPLEFT", 4, -8)
+	UIConfig.ScrollFrame:SetPoint("BOTTOMRIGHT", LFGDeclineCounterConfigDialogBG, "BOTTOMRIGHT", -3, 4)
+	UIConfig.ScrollFrame:SetClipsChildren(true)
+	UIConfig.ScrollFrame:SetScript("OnMouseWheel", ScrollFrame_OnMouseWheel)
 
-    UIConfig.showCharacterLife = CreateCheckButton("TOPLEFT", UIConfig.showCancel, "TOPLEFT", 200, 0, "Show Lifetime for character", core.DB.charLife.show, showCharacterLife, "showCharacterLife")
-    UIConfig.showAccountLife = CreateCheckButton("TOPLEFT", UIConfig.showCharacterLife, "BOTTOMLEFT", 0, 5, "Show Lifetime for account", core.DB.accountLife.show, showAccountLife, "showAccountLife")
-    UIConfig.crossCharacter = CreateCheckButton("TOPLEFT", UIConfig.showAccountLife, "BOTTOMLEFT", 0, 5, "Cross Character session", core.DB.session.crossCharacter, crossCharacterChange, "crossCharacter")
+    UIConfig.ScrollFrame.ScrollBar:ClearAllPoints()
+    UIConfig.ScrollFrame.ScrollBar:SetPoint("TOPLEFT", UIConfig.ScrollFrame, "TOPRIGHT", -12, -18)
+    UIConfig.ScrollFrame.ScrollBar:SetPoint("BOTTOMRIGHT", UIConfig.ScrollFrame, "BOTTOMRIGHT", -7, 18)
+
+    local options, position = SetTabs(UIConfig, 2, "Options", "Position")
+
+    --Options tab
+    options.showCancel = createCheckButton("TOPLEFT", options, "TOPLEFT", 5, -15, "Show Cancel counter", core.DB.showCounters.cancel, showCancelCount, "showCancel")
+    options.showDelist = createCheckButton("TOPLEFT", options.showCancel, "BOTTOMLEFT", 0, 5, "Show Delist counter", core.DB.showCounters.delist, showDelistCount, "showDelist")
+    options.showInvite = createCheckButton("TOPLEFT", options.showDelist, "BOTTOMLEFT", 0, 5, "Show Invite counter", core.DB.showCounters.invite, showInviteCount, "showInvite")
+    options.showAccept = createCheckButton("TOPLEFT", options.showInvite, "BOTTOMLEFT", 0, 5, "Show Accept counter", core.DB.showCounters.accept, showAcceptCount, "showAccept")
+
+    options.showCharacterLife = createCheckButton("TOPLEFT", options.showCancel, "TOPLEFT", 200, 0, "Show Lifetime for character", core.DB.charLife.show, showCharacterLife, "showCharacterLife")
+    options.showAccountLife = createCheckButton("TOPLEFT", options.showCharacterLife, "BOTTOMLEFT", 0, 5, "Show Lifetime for account", core.DB.accountLife.show, showAccountLife, "showAccountLife")
+    options.crossCharacter = createCheckButton("TOPLEFT", options.showAccountLife, "BOTTOMLEFT", 0, 5, "Cross Character session", core.DB.session.crossCharacter, crossCharacterChange, "crossCharacter")
     
-    UIConfig.resetCharacterLife = CreateButton("TOPLEFT", UIConfig.showAccept, "BOTTOMLEFT", 15, -25, 180, 30, "Reset Character stats", resetCharacterLife)
-    UIConfig.resetAccountLife = CreateButton("TOPLEFT", UIConfig.resetCharacterLife, "TOPRIGHT", 20, 0, 180, 30, "Reset Account stats", resetAccountLife)
+    options.resetCharacterLife = createButton("TOPLEFT", options.showAccept, "BOTTOMLEFT", 15, -25, 180, 30, "Reset Character stats", resetCharacterLife)
+    options.resetAccountLife = createButton("TOPLEFT", options.resetCharacterLife, "TOPRIGHT", 20, 0, 180, 30, "Reset Account stats", resetAccountLife)
 
+    --Position tab
+    position.anchorOption = createDropdown("TOPLEFT", position, "TOPLEFT", 0, -35, "Anchor", anchorOptions, core.DB.options.anchor, changeAnchor, nil)
+    position.orientationOption = createDropdown("TOPLEFT", position.anchorOption, "BOTTOMLEFT", 0, -30, "Orientation", oreientationOptions, core.DB.options.orientation, changeOrientation, nil)
+    position.padOption = createSlider("TOPLEFT", position.orientationOption, "BOTTOMLEFT", 15, -30, "Padding", 0, 50, 1, 125, 15, core.DB.options.padding, changePad, "padSlider")
+
+    position.xSlider = createSlider("TOPLEFT", position.anchorOption, "TOPRIGHT", 10, 0, "x offset", -1000, 1000, 1, 250, 15, core.DB.options.xOffset, moveX, "xSlider")
+    position.ySlider = createSlider("TOP", position.xSlider, "BOTTOM", 0, -50, "y offset", -1000, 1000, 1, 250, 15, core.DB.options.yOffset, moveY, "ySlider")
+    
     UIConfig:Hide()
     return UIConfig
 end

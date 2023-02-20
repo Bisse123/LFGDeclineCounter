@@ -26,8 +26,9 @@ function DB:init()
 			anchor = "top left",
 			orientation = "right",
 			xOffset = 0,
-			yOffset = 0,
-			padding = 0
+			yOffset = 2,
+			padding = 2,
+			scale = 1
 		}
 	end
 

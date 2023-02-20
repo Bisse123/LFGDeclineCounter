@@ -5,7 +5,7 @@ local Config = core.Config
 local UIConfig
 
 local CONFIG_FRAME_WIDTH = 460
-local CONFIG_FRAME_HEIGHT = 250
+local CONFIG_FRAME_HEIGHT = 275
 local anchorOptions = {
     "top left",
     "top right",
@@ -130,8 +130,8 @@ local function createSlider(point, relativeFrame, relativePoint, xOffset, yOffse
     slider.text:SetText(title)
     slider.textLow = _G[name.."Low"]
     slider.textHigh = _G[name.."High"]
-    slider.textLow:SetText(floor(minVal))
-    slider.textHigh:SetText(floor(maxVal))
+    slider.textLow:SetText(minVal)
+    slider.textHigh:SetText(maxVal)
     slider.textLow:SetTextColor(0.4,0.4,0.4)
     slider.textHigh:SetTextColor(0.4,0.4,0.4)
 
@@ -239,21 +239,25 @@ end
 
 local function showCancelCount()
     core.DB.showCounters.cancel = not core.DB.showCounters.cancel
+    core.Counter.showHideCancel()
     core.Counter.updateTextPoints()
 end
 
 local function showDelistCount()
     core.DB.showCounters.delist = not core.DB.showCounters.delist
+    core.Counter.showHideDelist()
     core.Counter.updateTextPoints()
 end
 
 local function showInviteCount()
     core.DB.showCounters.invite = not core.DB.showCounters.invite
+    core.Counter.showHideInvite()
     core.Counter.updateTextPoints()
 end
 
 local function showAcceptCount()
     core.DB.showCounters.accept = not core.DB.showCounters.accept
+    core.Counter.showHideAccept()
     core.Counter.updateTextPoints()
 end
 
@@ -287,6 +291,10 @@ local function moveY(self)
     core.Counter.setOffset()
 end
 
+local function scaleFrames(self)
+    core.DB.options.scale = floor(self:GetValue() / self:GetValueStep()) * self:GetValueStep()
+    core.Counter.Setscaling()
+end
 ----------------------------------
 -- Character functions
 ----------------------------------
@@ -386,9 +394,9 @@ function Config:CreateMenu()
     position.orientationOption = createDropdown("TOPLEFT", position.anchorOption, "BOTTOMLEFT", 0, -30, "Orientation", oreientationOptions, core.DB.options.orientation, changeOrientation, nil)
     position.padOption = createSlider("TOPLEFT", position.orientationOption, "BOTTOMLEFT", 15, -30, "Padding", 0, 50, 1, 125, 15, core.DB.options.padding, changePad, "padSlider")
 
-    position.xSlider = createSlider("TOPLEFT", position.anchorOption, "TOPRIGHT", 10, 0, "x offset", -1000, 1000, 1, 250, 15, core.DB.options.xOffset, moveX, "xSlider")
-    position.ySlider = createSlider("TOP", position.xSlider, "BOTTOM", 0, -50, "y offset", -1000, 1000, 1, 250, 15, core.DB.options.yOffset, moveY, "ySlider")
-    
+    position.xSlider = createSlider("TOPLEFT", position.anchorOption, "TOPRIGHT", 10, 0, "Offset x", -1000, 1000, 1, 250, 15, core.DB.options.xOffset, moveX, "xSlider")
+    position.ySlider = createSlider("TOP", position.xSlider, "BOTTOM", 0, -50, "Offset y", -1000, 1000, 1, 250, 15, core.DB.options.yOffset, moveY, "ySlider")
+    position.scaleSlider = createSlider("TOP", position.ySlider, "BOTTOM", 0, -50, "Scale", 0.5, 2, 0.01, 125, 15, 1, scaleFrames, "scaleSlider")
     UIConfig:Hide()
     return UIConfig
 end
